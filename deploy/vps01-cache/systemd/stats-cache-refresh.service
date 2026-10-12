@@ -1,0 +1,20 @@
+[Unit]
+Description=Refresh the cached README stats cards
+After=network-online.target stats-cache-renderer.service
+Wants=network-online.target stats-cache-renderer.service
+
+[Service]
+Type=oneshot
+User=statscache
+Group=statscache
+EnvironmentFile=/etc/stats-cache/stats-cache.env
+ExecStart=/usr/local/bin/stats-cache-refresh
+# A failed upstream fetch is logged and keeps the last good copy; it is not a unit failure.
+SuccessExitStatus=1
+# Visits start this unit through the .path unit; the script returns at once when the copy is fresh.
+StartLimitIntervalSec=0
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/stats-cache

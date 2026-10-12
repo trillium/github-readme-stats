@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Refresh the cached README stats cards from the local renderer (the "upstream" below).
+#
+# Usage: stats-cache-refresh
+#
+# Cards come from the allowlist in CARDS_FILE. A copy is fetched only when it
+# is missing or older than FRESH_SECONDS, and never more than once per
+# MIN_RETRY_SECONDS. The new copy replaces the old one only when the upstream
+# answered 200 with a real card; any failure leaves the last good copy in place.
+set -u
+
+CARDS_FILE=${CARDS_FILE:-/etc/stats-cache/cards.conf}
+CACHE_DIR=${CACHE_DIR:-/var/lib/stats-cache/www}
+STATE_DIR=${STATE_DIR:-/var/lib/stats-cache/state}
+UPSTREAM_BASE=${UPSTREAM_BASE:-http://127.0.0.1:9000}
+FRESH_SECONDS=${FRESH_SECONDS:-3600}
+MIN_RETRY_SECONDS=${MIN_RETRY_SECONDS:-120}
+FETCH_TIMEOUT=${FETCH_TIMEOUT:-20}
+MAX_BYTES=${MAX_BYTES:-262144}
+
+log() { echo "stats-cache-refresh: $*" >&2; }
+
+# Seconds since the file was last modified; a huge number when it is missing.
+age_of() {
+  local mtime
+  mtime=$(stat -c %Y "$1" 2>/dev/null) || mtime=$(stat -f %m "$1" 2>/dev/null) || {
+    echo 999999999
+    return
+  }
+  echo $(($(date +%s) - mtime))
+}
+
+# A card is good when it is an SVG with the card title marker and none of the
+# markers renderError() emits (the upstream serves error cards with status 200).
+is_good_card() {
+  local file=$1
+  [ -s "$file" ] || return 1
+  grep -q '<svg' "$file" || return 1
+  grep -q 'data-testid="card-title"' "$file" || return 1
+  if grep -q -e 'Something went wrong!' -e 'data-testid="message"' "$file"; then
+    return 1
+  fi
+}
+
+refresh_card() {
+  local name=$1 query=$2
+  local target="$CACHE_DIR/$name.svg" attempt="$STATE_DIR/$name.attempt"
+
+  if [ "$(age_of "$target")" -lt "$FRESH_SECONDS" ]; then
+    return 0
+  fi
+  if [ "$(age_of "$attempt")" -lt "$MIN_RETRY_SECONDS" ]; then
+    return 0
+  fi
+  touch "$attempt"
+
+  local tmp code
+  tmp=$(mktemp "$CACHE_DIR/.$name.XXXXXX") || return 1
+  code=$(curl -sS --max-time "$FETCH_TIMEOUT" --max-filesize "$MAX_BYTES" \
+    -H 'Accept: image/svg+xml' -o "$tmp" -w '%{http_code}' \
+    "$UPSTREAM_BASE$query" 2>/dev/null) || code=000
+  if [ "$code" != 200 ]; then
+    log "$name: upstream answered $code, keeping last good copy"
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! is_good_card "$tmp"; then
+    log "$name: upstream returned an error card or non-card body, keeping last good copy"
+    rm -f "$tmp"
+    return 1
+  fi
+  chmod 644 "$tmp"
+  mv -f "$tmp" "$target"
+  log "$name: refreshed"
+}
+
+main() {
+  mkdir -p "$CACHE_DIR" "$STATE_DIR" || return 1
+  # One refresher at a time; a concurrent run is already doing the work.
+  exec 9>"$STATE_DIR/lock"
+  flock -n 9 || return 0
+
+  local status=0 name query
+  while read -r name query; do
+    refresh_card "$name" "$query" || status=1
+  done < <(grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' "$CARDS_FILE")
+  return $status
+}
+
+main

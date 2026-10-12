@@ -1,0 +1,10 @@
+[Unit]
+Description=Keep the cached README stats cards warm
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30min
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
