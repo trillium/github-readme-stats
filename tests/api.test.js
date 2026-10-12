@@ -106,6 +106,19 @@ describe("Test /api/", () => {
     expect(res.send).toBeCalledWith(renderStatsCard(stats, { ...req.query }));
   });
 
+  it("should serve stale while revalidating in the background", async () => {
+    const { req, res } = faker({}, data_stats);
+
+    await api(req, res);
+
+    expect(res.setHeader).toBeCalledWith(
+      "Cache-Control",
+      `max-age=${CONSTANTS.CARD_CACHE_SECONDS / 2}, s-maxage=${
+        CONSTANTS.CARD_CACHE_SECONDS
+      }, stale-while-revalidate=${CONSTANTS.STALE_WHILE_REVALIDATE_SECONDS}`,
+    );
+  });
+
   it("should render error card on error", async () => {
     const { req, res } = faker({}, error);
 

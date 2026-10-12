@@ -4,7 +4,7 @@ import axios from "axios";
 import MockAdapter from "axios-mock-adapter";
 import topLangs from "../api/top-langs.js";
 import { renderTopLanguages } from "../src/cards/top-languages-card.js";
-import { renderError } from "../src/common/utils.js";
+import { CONSTANTS, renderError } from "../src/common/utils.js";
 import { expect, it, describe, afterEach } from "@jest/globals";
 
 const data_langs = {
@@ -89,6 +89,36 @@ describe("Test /api/top-langs", () => {
 
     expect(res.setHeader).toBeCalledWith("Content-Type", "image/svg+xml");
     expect(res.send).toBeCalledWith(renderTopLanguages(langs));
+  });
+
+  it("should serve stale while revalidating in the background", async () => {
+    const req = { query: { username: "anuraghazra" } };
+    const res = { setHeader: jest.fn(), send: jest.fn() };
+    mock.onPost("https://api.github.com/graphql").reply(200, data_langs);
+
+    await topLangs(req, res);
+
+    expect(res.setHeader).toBeCalledWith(
+      "Cache-Control",
+      `max-age=${CONSTANTS.TOP_LANGS_CACHE_SECONDS / 2}, s-maxage=${
+        CONSTANTS.TOP_LANGS_CACHE_SECONDS
+      }, stale-while-revalidate=${CONSTANTS.STALE_WHILE_REVALIDATE_SECONDS}`,
+    );
+  });
+
+  it("should set shorter cache when error", async () => {
+    const req = { query: { username: "anuraghazra" } };
+    const res = { setHeader: jest.fn(), send: jest.fn() };
+    mock.onPost("https://api.github.com/graphql").reply(200, error);
+
+    await topLangs(req, res);
+
+    expect(res.setHeader).toBeCalledWith(
+      "Cache-Control",
+      `max-age=${CONSTANTS.ERROR_CACHE_SECONDS / 2}, s-maxage=${
+        CONSTANTS.ERROR_CACHE_SECONDS
+      }, stale-while-revalidate=${CONSTANTS.ONE_DAY}`,
+    );
   });
 
   it("should work with the query options", async () => {

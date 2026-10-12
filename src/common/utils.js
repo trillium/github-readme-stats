@@ -474,6 +474,37 @@ const CONSTANTS = {
   TOP_LANGS_CACHE_SECONDS: SIX_DAY,
   PIN_CARD_CACHE_SECONDS: TEN_DAY,
   ERROR_CACHE_SECONDS: TEN_MINUTES,
+  STALE_WHILE_REVALIDATE_SECONDS: ONE_DAY * 30,
+};
+
+/**
+ * Set cache headers for a successful card response. The CDN keeps the card for
+ * `cacheSeconds`, then keeps serving the stale copy instantly while it is
+ * rebuilt in the background, so an expired entry never blocks a visitor.
+ *
+ * @param {object} res Response object.
+ * @param {number} cacheSeconds CDN freshness window in seconds.
+ */
+const setCacheHeaders = (res, cacheSeconds) => {
+  res.setHeader(
+    "Cache-Control",
+    `max-age=${cacheSeconds / 2}, s-maxage=${cacheSeconds}, stale-while-revalidate=${CONSTANTS.STALE_WHILE_REVALIDATE_SECONDS}`,
+  );
+};
+
+/**
+ * Set short-lived cache headers for an error response, so a failure (e.g. a
+ * GitHub API outage) is not pinned in the CDN.
+ *
+ * @param {object} res Response object.
+ */
+const setErrorCacheHeaders = (res) => {
+  res.setHeader(
+    "Cache-Control",
+    `max-age=${CONSTANTS.ERROR_CACHE_SECONDS / 2}, s-maxage=${
+      CONSTANTS.ERROR_CACHE_SECONDS
+    }, stale-while-revalidate=${CONSTANTS.ONE_DAY}`,
+  );
 };
 
 /**
@@ -618,6 +649,8 @@ export {
   wrapTextMultiline,
   logger,
   CONSTANTS,
+  setCacheHeaders,
+  setErrorCacheHeaders,
   CustomError,
   MissingParamError,
   measureText,
