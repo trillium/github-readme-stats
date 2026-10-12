@@ -115,9 +115,7 @@ describe("Test /api/top-langs", () => {
 
     expect(res.setHeader).toBeCalledWith(
       "Cache-Control",
-      `max-age=${CONSTANTS.ERROR_CACHE_SECONDS / 2}, s-maxage=${
-        CONSTANTS.ERROR_CACHE_SECONDS
-      }, stale-while-revalidate=${CONSTANTS.ONE_DAY}`,
+      `private, max-age=${CONSTANTS.ERROR_CACHE_SECONDS / 2}`,
     );
   });
 
