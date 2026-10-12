@@ -1,0 +1,37 @@
+# Public, unauthenticated site block for the cached README stats cards.
+# Separate from the bearer-token edge site: do not merge the two.
+# Set STATS_HOSTNAME in Caddy's environment, or install.sh renders a copy with it filled in.
+{$STATS_HOSTNAME} {
+	root * /var/lib/stats-cache/www
+
+	@cards {
+		method GET HEAD
+		path /stats.svg /top-langs.svg
+	}
+	handle @cards {
+		header Content-Type "image/svg+xml; charset=utf-8"
+		header Cache-Control "public, max-age=1800"
+		header X-Content-Type-Options nosniff
+		header Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+		file_server
+	}
+	handle {
+		respond 404
+	}
+
+	# Each request touches this log, which starts a refresh check (stats-cache-refresh.path).
+	log {
+		output file /var/log/caddy/stats-cache-access.log {
+			roll_size 10MiB
+			roll_keep 2
+		}
+		format filter {
+			wrap json
+			fields {
+				request>remote_ip delete
+				request>client_ip delete
+				request>headers delete
+			}
+		}
+	}
+}

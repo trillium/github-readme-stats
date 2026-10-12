@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh the cached README stats cards after a visit
+
+[Path]
+# Caddy appends to this log on every request to the stats hostname.
+PathModified=/var/log/caddy/stats-cache-access.log
+TriggerLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target
