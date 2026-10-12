@@ -1,6 +1,6 @@
 # Public, unauthenticated site block for the cached README stats cards.
 # Separate from the bearer-token edge site: do not merge the two.
-# Set STATS_HOSTNAME in Caddy's environment, or install.sh renders a copy with it filled in.
+# Template: install.sh renders /etc/stats-cache/Caddyfile.site with STATS_HOSTNAME filled in.
 {$STATS_HOSTNAME} {
 	root * /var/lib/stats-cache/www
 

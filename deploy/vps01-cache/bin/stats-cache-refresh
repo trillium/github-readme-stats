@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 # Refresh the cached README stats cards from the upstream deployment.
 #
-# Usage: stats-cache-refresh [--force] [card-name ...]
+# Usage: stats-cache-refresh
 #
-# Cards come from the allowlist in CARDS_FILE (default: all of them). A copy is
-# fetched only when it is missing or older than FRESH_SECONDS (--force skips
-# that check), and never more than once per MIN_RETRY_SECONDS. The new copy
-# replaces the old one only when the upstream answered 200 with a real card;
-# any failure leaves the last good copy in place.
+# Cards come from the allowlist in CARDS_FILE. A copy is fetched only when it
+# is missing or older than FRESH_SECONDS, and never more than once per
+# MIN_RETRY_SECONDS. The new copy replaces the old one only when the upstream
+# answered 200 with a real card; any failure leaves the last good copy in place.
 set -u
 
 CARDS_FILE=${CARDS_FILE:-/etc/stats-cache/cards.conf}
@@ -44,13 +43,13 @@ is_good_card() {
 }
 
 refresh_card() {
-  local name=$1 query=$2 force=$3
+  local name=$1 query=$2
   local target="$CACHE_DIR/$name.svg" attempt="$STATE_DIR/$name.attempt"
 
-  if [ "$force" != 1 ] && [ "$(age_of "$target")" -lt "$FRESH_SECONDS" ]; then
+  if [ "$(age_of "$target")" -lt "$FRESH_SECONDS" ]; then
     return 0
   fi
-  if [ "$(age_of "$attempt")" -lt "$MIN_RETRY_SECONDS" ] && [ "$force" != 1 ]; then
+  if [ "$(age_of "$attempt")" -lt "$MIN_RETRY_SECONDS" ]; then
     return 0
   fi
   touch "$attempt"
@@ -76,39 +75,16 @@ refresh_card() {
 }
 
 main() {
-  local force=0 names=() arg
-  for arg in "$@"; do
-    case $arg in
-      --force) force=1 ;;
-      -*) log "unknown option $arg"; return 2 ;;
-      *) names+=("$arg") ;;
-    esac
-  done
-
   mkdir -p "$CACHE_DIR" "$STATE_DIR" || return 1
   # One refresher at a time; a concurrent run is already doing the work.
   exec 9>"$STATE_DIR/lock"
   flock -n 9 || return 0
 
-  local status=0 name query matched
-  for arg in ${names[@]+"${names[@]}"}; do
-    matched=0
-    while read -r name query; do
-      [ "$name" = "$arg" ] && matched=1
-    done < <(grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' "$CARDS_FILE")
-    if [ "$matched" = 0 ]; then
-      log "unknown card $arg"
-      return 2
-    fi
-  done
-
+  local status=0 name query
   while read -r name query; do
-    if [ ${#names[@]} -gt 0 ]; then
-      case " ${names[*]} " in *" $name "*) ;; *) continue ;; esac
-    fi
-    refresh_card "$name" "$query" "$force" || status=1
+    refresh_card "$name" "$query" || status=1
   done < <(grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' "$CARDS_FILE")
   return $status
 }
 
-main "$@"
+main

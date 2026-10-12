@@ -42,13 +42,14 @@ on Vercel.
 | `cards.conf` (the allowlist)             | `/etc/stats-cache/`                             |
 | `stats-cache.env` (freshness, timeouts)  | `/etc/stats-cache/` (kept if already present)   |
 | `systemd/stats-cache-refresh.{service,timer,path}` | `/etc/systemd/system/`                |
-| `Caddyfile.stats-cache`                  | `/etc/stats-cache/` (not loaded by Caddy yet)   |
+| `Caddyfile.stats-cache` (template)       | `/etc/stats-cache/Caddyfile.site` (rendered)    |
 
 ## Deploy
 
 1. DNS: point a new hostname (for example `stats.example.com`) at
    198.12.123.41. Caddy gets the certificate itself on first use.
-2. On vps01, from this directory, as root:
+2. On vps01, from this directory, as root. `STATS_HOSTNAME` is required here:
+   without it no Caddy site block is rendered and step 3 has nothing to import.
 
    ```sh
    sudo STATS_HOSTNAME=stats.example.com ./install.sh
@@ -72,11 +73,6 @@ on Vercel.
    sudo caddy validate --config /etc/caddy/Caddyfile
    sudo systemctl reload caddy
    ```
-
-   To use the `{$STATS_HOSTNAME}` placeholder instead, import
-   `/etc/stats-cache/Caddyfile.stats-cache` and set `STATS_HOSTNAME` in Caddy's
-   environment (`systemctl edit caddy`, which needs a restart rather than a
-   reload).
 
 4. Check:
 

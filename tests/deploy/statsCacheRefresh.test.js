@@ -28,11 +28,11 @@ let tmp;
 let reply;
 let requests;
 
-const run = (args = [], env = {}) =>
+const run = (env = {}) =>
   new Promise((resolve) => {
     execFile(
       SCRIPT,
-      args,
+      [],
       {
         env: {
           ...process.env,
@@ -56,6 +56,12 @@ const ago = (file, seconds) => {
   const t = new Date(Date.now() - seconds * 1000);
   fs.utimesSync(file, t, t);
 };
+const stale = (name) => {
+  fs.writeFileSync(cached(name), OLD_CARD);
+  ago(cached(name), 7200);
+};
+const clearAttempts = () =>
+  fs.rmSync(path.join(tmp, "state"), { recursive: true, force: true });
 
 beforeAll(async () => {
   server = http.createServer((req, res) => {
@@ -100,24 +106,15 @@ describe("stats-cache-refresh", () => {
     expect(requests[1].startsWith("/api/top-langs/?")).toBe(true);
   });
 
-  it("only ever requests the allowlisted urls, and rejects other card names", async () => {
-    const { code, stderr } = await run(["../etc/passwd"]);
-    expect(code).toBe(2);
-    expect(stderr).toContain("unknown card");
-    expect(requests).toHaveLength(0);
-    const allowed = fs
-      .readFileSync(path.join(DEPLOY, "cards.conf"), "utf8")
-      .split("\n")
-      .filter((line) => line && !line.startsWith("#"))
-      .map((line) => line.split(" ")[0]);
-    expect(allowed).toEqual(["stats", "top-langs"]);
-  });
-
-  it("refreshes a single named card", async () => {
-    await run(["top-langs"]);
-    expect(requests).toHaveLength(1);
-    expect(fs.existsSync(cached("stats"))).toBe(false);
-    expect(fs.existsSync(cached("top-langs"))).toBe(true);
+  it("fetches exactly the cards in the allowlist and writes nothing else", async () => {
+    fs.writeFileSync(
+      path.join(tmp, "cards.conf"),
+      "# comment\n\n  # indented comment\nonly /api/?username=trillium&x=1\n",
+    );
+    const { code } = await run();
+    expect(code).toBe(0);
+    expect(requests).toEqual(["/api/?username=trillium&x=1"]);
+    expect(fs.readdirSync(path.join(tmp, "www"))).toEqual(["only.svg"]);
   });
 
   it("does not contact the upstream while the copy is fresh", async () => {
@@ -128,38 +125,34 @@ describe("stats-cache-refresh", () => {
     expect(fs.readFileSync(cached("stats"), "utf8")).toBe(OLD_CARD);
   });
 
-  it("refreshes a stale copy, and --force refreshes a fresh one", async () => {
-    fs.writeFileSync(cached("stats"), OLD_CARD);
-    ago(cached("stats"), 7200);
-    await run(["stats"]);
+  it("refreshes only the stale copy", async () => {
+    stale("stats");
+    fs.writeFileSync(cached("top-langs"), OLD_CARD);
+    await run();
+    expect(requests).toHaveLength(1);
+    expect(requests[0].startsWith("/api/?")).toBe(true);
     expect(fs.readFileSync(cached("stats"), "utf8")).toBe(GOOD_CARD);
-
-    fs.writeFileSync(cached("stats"), OLD_CARD);
-    await run(["--force", "stats"]);
-    expect(fs.readFileSync(cached("stats"), "utf8")).toBe(GOOD_CARD);
+    expect(fs.readFileSync(cached("top-langs"), "utf8")).toBe(OLD_CARD);
   });
 
   it("keeps the last good copy when the upstream answers non-200", async () => {
-    fs.writeFileSync(cached("stats"), OLD_CARD);
-    ago(cached("stats"), 7200);
+    stale("stats");
     reply = { status: 500, body: GOOD_CARD };
-    const { code } = await run(["stats"]);
+    const { code } = await run();
     expect(code).toBe(1);
     expect(fs.readFileSync(cached("stats"), "utf8")).toBe(OLD_CARD);
   });
 
   it("keeps the last good copy when the upstream times out", async () => {
-    fs.writeFileSync(cached("stats"), OLD_CARD);
-    ago(cached("stats"), 7200);
+    stale("stats");
     reply = { hang: true };
-    const { code } = await run(["stats"]);
+    const { code } = await run();
     expect(code).toBe(1);
     expect(fs.readFileSync(cached("stats"), "utf8")).toBe(OLD_CARD);
   });
 
   it("keeps the last good copy when the upstream returns an error card with status 200", async () => {
-    fs.writeFileSync(cached("stats"), OLD_CARD);
-    ago(cached("stats"), 7200);
+    stale("stats");
     reply = {
       status: 200,
       body: renderError(
@@ -167,7 +160,7 @@ describe("stats-cache-refresh", () => {
         "Make sure the username is right",
       ),
     };
-    const { code, stderr } = await run(["stats"]);
+    const { code, stderr } = await run();
     expect(code).toBe(1);
     expect(stderr).toContain("error card");
     expect(fs.readFileSync(cached("stats"), "utf8")).toBe(OLD_CARD);
@@ -175,8 +168,9 @@ describe("stats-cache-refresh", () => {
 
   it("rejects empty and non-svg bodies", async () => {
     for (const body of ["", "<html>captive portal</html>"]) {
+      clearAttempts();
       reply = { status: 200, body };
-      const { code } = await run(["--force", "stats"]);
+      const { code } = await run();
       expect(code).toBe(1);
       expect(fs.existsSync(cached("stats"))).toBe(false);
     }
@@ -189,15 +183,17 @@ describe("stats-cache-refresh", () => {
   });
 
   it("retries a failing upstream at most once per MIN_RETRY_SECONDS", async () => {
-    fs.writeFileSync(cached("stats"), OLD_CARD);
-    ago(cached("stats"), 7200);
+    stale("stats");
+    fs.writeFileSync(cached("top-langs"), OLD_CARD);
     reply = { status: 500, body: "" };
-    await run(["stats"]);
-    await run(["stats"]);
-    await run(["stats"]);
+    await run();
+    await run();
+    await run();
     expect(requests).toHaveLength(1);
     reply = { status: 200, body: GOOD_CARD };
-    await run(["--force", "stats"]);
+    ago(path.join(tmp, "state", "stats.attempt"), 7200);
+    await run();
+    expect(requests).toHaveLength(2);
     expect(fs.readFileSync(cached("stats"), "utf8")).toBe(GOOD_CARD);
   });
 });

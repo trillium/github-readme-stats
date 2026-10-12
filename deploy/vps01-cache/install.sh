@@ -16,6 +16,7 @@ CONF=/etc/stats-cache
 
 for tool in curl flock; do
   if ! command -v "$tool" >/dev/null; then
+    apt-get update
     apt-get install -y curl util-linux
     break
   fi
@@ -35,7 +36,6 @@ install -m 644 "$SRC/cards.conf" "$CONF/cards.conf"
 # Keep local edits to the settings; the shipped defaults are always in .dist.
 install -m 644 "$SRC/stats-cache.env" "$CONF/stats-cache.env.dist"
 [ -e "$CONF/stats-cache.env" ] || install -m 644 "$SRC/stats-cache.env" "$CONF/stats-cache.env"
-install -m 644 "$SRC/Caddyfile.stats-cache" "$CONF/Caddyfile.stats-cache"
 if [ -n "${STATS_HOSTNAME:-}" ]; then
   [[ $STATS_HOSTNAME =~ ^[A-Za-z0-9.-]+$ ]] || { echo "bad STATS_HOSTNAME" >&2; exit 1; }
   sed "s|{\$STATS_HOSTNAME}|$STATS_HOSTNAME|" "$SRC/Caddyfile.stats-cache" >"$CONF/Caddyfile.site"
