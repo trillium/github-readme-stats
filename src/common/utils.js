@@ -488,7 +488,7 @@ const CONSTANTS = {
 const setCacheHeaders = (res, cacheSeconds) => {
   res.setHeader(
     "Cache-Control",
-    `max-age=${cacheSeconds / 2}, s-maxage=${cacheSeconds}, stale-while-revalidate=${CONSTANTS.STALE_WHILE_REVALIDATE_SECONDS}`,
+    `max-age=${Math.floor(cacheSeconds / 2)}, s-maxage=${cacheSeconds}, stale-while-revalidate=${CONSTANTS.STALE_WHILE_REVALIDATE_SECONDS}`,
   );
 };
 
