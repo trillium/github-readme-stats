@@ -45,10 +45,11 @@ proxy) never waits on a render, and nothing depends on Vercel.
 ## Requirements
 
 - Debian 12 with systemd and stock Caddy already serving 80/443.
-- Node.js **18 or newer** (`engines` in `package.json`) with npm. If the host
-  has no such node, `install.sh` adds the NodeSource apt repository and installs
-  Node 22 LTS (`nodejs` from NodeSource includes npm). An existing Node 18+ with
-  npm is left alone.
+- Node.js **18 or newer** (`engines` in `package.json`) at `/usr/bin/node`
+  (the path the renderer unit runs) with npm. If the host has no such node,
+  `install.sh` adds the NodeSource apt repository and installs Node 22 LTS
+  (`nodejs` from NodeSource includes npm). An existing `/usr/bin/node` 18+ with
+  npm is left alone; a node elsewhere on `PATH` is not used.
 - A GitHub personal access token, see below.
 
 ## GitHub token

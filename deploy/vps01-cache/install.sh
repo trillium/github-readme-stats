@@ -15,7 +15,8 @@ STATE=/var/lib/stats-cache
 CONF=/etc/stats-cache
 APP=/opt/stats-cache/app
 NODE_MIN=18   # package.json engines
-NODE_MAJOR=22 # LTS installed from NodeSource when the host has no usable node + npm
+NODE_MAJOR=22 # LTS installed from NodeSource when the host has no usable /usr/bin/node + npm
+NODE=/usr/bin/node # the renderer unit's ExecStart runs this exact path
 
 [ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 1; }
 [ -f "$REPO/express.js" ] && [ -f "$REPO/package-lock.json" ] ||
@@ -25,8 +26,8 @@ if [ -n "${STATS_HOSTNAME:-}" ]; then
 fi
 
 node_ok() {
-  command -v node >/dev/null && command -v npm >/dev/null &&
-    [ "$(node -p 'process.versions.node.split(".")[0]')" -ge "$NODE_MIN" ]
+  [ -x "$NODE" ] && command -v npm >/dev/null &&
+    [ "$("$NODE" -p 'process.versions.node.split(".")[0]')" -ge "$NODE_MIN" ]
 }
 
 apt_updated=0
@@ -40,6 +41,7 @@ for tool in curl flock; do
 done
 
 if ! node_ok; then
+  echo "no $NODE >= $NODE_MIN with npm; installing Node $NODE_MAJOR from NodeSource"
   apt_install ca-certificates curl gnupg
   install -d -m 755 /etc/apt/keyrings
   curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key |
@@ -49,7 +51,8 @@ if ! node_ok; then
   apt_updated=0
   apt_install nodejs
 fi
-echo "node $(node -v), npm $(npm -v)"
+node_ok || { echo "$NODE >= $NODE_MIN with npm still missing after install" >&2; exit 1; }
+echo "node $("$NODE" -v), npm $(npm -v)"
 
 id "$USER_NAME" >/dev/null 2>&1 ||
   useradd --system --home-dir "$STATE" --shell /usr/sbin/nologin "$USER_NAME"
