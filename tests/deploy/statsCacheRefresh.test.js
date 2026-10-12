@@ -102,8 +102,8 @@ describe("stats-cache-refresh", () => {
     expect(requests.every((url) => url.includes("username=trillium"))).toBe(
       true,
     );
-    expect(requests[0].startsWith("/api/?")).toBe(true);
-    expect(requests[1].startsWith("/api/top-langs/?")).toBe(true);
+    expect(requests[0].startsWith("/?")).toBe(true);
+    expect(requests[1].startsWith("/top-langs?")).toBe(true);
   });
 
   it("fetches exactly the cards in the allowlist and writes nothing else", async () => {
@@ -130,7 +130,7 @@ describe("stats-cache-refresh", () => {
     fs.writeFileSync(cached("top-langs"), OLD_CARD);
     await run();
     expect(requests).toHaveLength(1);
-    expect(requests[0].startsWith("/api/?")).toBe(true);
+    expect(requests[0].startsWith("/?")).toBe(true);
     expect(fs.readFileSync(cached("stats"), "utf8")).toBe(GOOD_CARD);
     expect(fs.readFileSync(cached("top-langs"), "utf8")).toBe(OLD_CARD);
   });

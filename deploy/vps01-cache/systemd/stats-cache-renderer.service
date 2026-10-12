@@ -1,0 +1,34 @@
+[Unit]
+Description=Local github-readme-stats renderer (loopback only)
+After=network-online.target
+Wants=network-online.target
+# Without a token the renderer can only produce error cards; install.sh explains how to add one.
+ConditionFileNotEmpty=/etc/stats-cache/renderer.env
+
+[Service]
+User=statscache
+Group=statscache
+WorkingDirectory=/opt/stats-cache/app
+# renderer.env is root-owned 0600 and holds PAT_1; systemd reads it, the service user cannot.
+EnvironmentFile=/etc/stats-cache/renderer.env
+# After the env file on purpose: it cannot move the listener off loopback.
+Environment=NODE_ENV=production port=9000 host=127.0.0.1
+ExecStart=/usr/bin/node express.js
+Restart=on-failure
+RestartSec=5
+MemoryMax=256M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=multi-user.target

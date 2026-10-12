@@ -7,7 +7,8 @@ import gistCard from "./api/gist.js";
 import express from "express";
 
 const app = express();
-app.listen(process.env.port || 9000);
+// Set host=127.0.0.1 to listen on loopback only (default: all interfaces).
+app.listen(process.env.port || 9000, process.env.host);
 
 app.get("/", statsCard);
 app.get("/pin", repoCard);

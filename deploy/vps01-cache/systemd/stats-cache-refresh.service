@@ -1,7 +1,7 @@
 [Unit]
 Description=Refresh the cached README stats cards
-After=network-online.target
-Wants=network-online.target
+After=network-online.target stats-cache-renderer.service
+Wants=network-online.target stats-cache-renderer.service
 
 [Service]
 Type=oneshot

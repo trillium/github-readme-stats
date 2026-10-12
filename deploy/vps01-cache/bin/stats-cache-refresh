@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Refresh the cached README stats cards from the upstream deployment.
+# Refresh the cached README stats cards from the local renderer (the "upstream" below).
 #
 # Usage: stats-cache-refresh
 #
@@ -12,7 +12,7 @@ set -u
 CARDS_FILE=${CARDS_FILE:-/etc/stats-cache/cards.conf}
 CACHE_DIR=${CACHE_DIR:-/var/lib/stats-cache/www}
 STATE_DIR=${STATE_DIR:-/var/lib/stats-cache/state}
-UPSTREAM_BASE=${UPSTREAM_BASE:-https://trillium-github-readme-stats.vercel.app}
+UPSTREAM_BASE=${UPSTREAM_BASE:-http://127.0.0.1:9000}
 FRESH_SECONDS=${FRESH_SECONDS:-3600}
 MIN_RETRY_SECONDS=${MIN_RETRY_SECONDS:-120}
 FETCH_TIMEOUT=${FETCH_TIMEOUT:-20}
