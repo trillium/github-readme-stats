@@ -10,8 +10,9 @@ proxy) never waits on a render, and nothing depends on Vercel.
 ## How it works
 
 - `stats-cache-renderer.service` runs the repo's `express.js` as the
-  unprivileged `statscache` user, bound to `127.0.0.1:9000` only (the unit sets
-  `host=127.0.0.1` after reading its env file, so the file cannot widen it).
+  unprivileged `statscache` user, bound to `127.0.0.1:9000` only (the unit's
+  `ExecStart` sets `host=127.0.0.1` and `port=9000` through `env`, which wins
+  over its env file, so the file cannot widen it).
   The code is a copy of the checkout you install from, in `/opt/stats-cache/app`
   (root-owned, read-only to the service) with production dependencies from
   `package-lock.json`; `/opt/stats-cache/app/VERSION` records the commit.

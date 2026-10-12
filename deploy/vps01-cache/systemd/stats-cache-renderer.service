@@ -11,9 +11,9 @@ Group=statscache
 WorkingDirectory=/opt/stats-cache/app
 # renderer.env is root-owned 0600 and holds PAT_1; systemd reads it, the service user cannot.
 EnvironmentFile=/etc/stats-cache/renderer.env
-# After the env file on purpose: it cannot move the listener off loopback.
-Environment=NODE_ENV=production port=9000 host=127.0.0.1
-ExecStart=/usr/bin/node express.js
+# Set on the command line because EnvironmentFile= values override Environment=;
+# env(1) applies these last, so renderer.env cannot move the listener off 127.0.0.1:9000.
+ExecStart=/usr/bin/env NODE_ENV=production port=9000 host=127.0.0.1 /usr/bin/node express.js
 Restart=on-failure
 RestartSec=5
 MemoryMax=256M
