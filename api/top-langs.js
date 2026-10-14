@@ -2,6 +2,8 @@ import { renderTopLanguages } from "../src/cards/top-languages-card.js";
 import { blacklist } from "../src/common/blacklist.js";
 import {
   CONSTANTS,
+  setCacheHeaders,
+  setErrorCacheHeaders,
   parseArray,
   parseBoolean,
   renderError,
@@ -77,10 +79,7 @@ export default async (req, res) => {
       ? parseInt(process.env.CACHE_SECONDS, 10) || cacheSeconds
       : cacheSeconds;
 
-    res.setHeader(
-      "Cache-Control",
-      `max-age=${cacheSeconds / 2}, s-maxage=${cacheSeconds}`,
-    );
+    setCacheHeaders(res, cacheSeconds);
 
     return res.send(
       renderTopLanguages(topLangs, {
@@ -103,12 +102,7 @@ export default async (req, res) => {
       }),
     );
   } catch (err) {
-    res.setHeader(
-      "Cache-Control",
-      `max-age=${CONSTANTS.ERROR_CACHE_SECONDS / 2}, s-maxage=${
-        CONSTANTS.ERROR_CACHE_SECONDS
-      }, stale-while-revalidate=${CONSTANTS.ONE_DAY}`,
-    ); // Use lower cache period for errors.
+    setErrorCacheHeaders(res); // Use lower cache period for errors.
     return res.send(
       renderError(err.message, err.secondaryMessage, {
         title_color,

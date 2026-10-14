@@ -106,6 +106,30 @@ describe("Test /api/", () => {
     expect(res.send).toBeCalledWith(renderStatsCard(stats, { ...req.query }));
   });
 
+  it("should serve stale while revalidating in the background", async () => {
+    const { req, res } = faker({}, data_stats);
+
+    await api(req, res);
+
+    expect(res.setHeader).toBeCalledWith(
+      "Cache-Control",
+      `max-age=${CONSTANTS.CARD_CACHE_SECONDS / 2}, s-maxage=${
+        CONSTANTS.CARD_CACHE_SECONDS
+      }, stale-while-revalidate=${CONSTANTS.STALE_WHILE_REVALIDATE_SECONDS}`,
+    );
+  });
+
+  it("should send an integer max-age for an odd cache_seconds", async () => {
+    const { req, res } = faker({ cache_seconds: 43201 }, data_stats);
+
+    await api(req, res);
+
+    expect(res.setHeader).toBeCalledWith(
+      "Cache-Control",
+      `max-age=21600, s-maxage=43201, stale-while-revalidate=${CONSTANTS.STALE_WHILE_REVALIDATE_SECONDS}`,
+    );
+  });
+
   it("should render error card on error", async () => {
     const { req, res } = faker({}, error);
 
@@ -176,9 +200,7 @@ describe("Test /api/", () => {
       ["Content-Type", "image/svg+xml"],
       [
         "Cache-Control",
-        `max-age=${CONSTANTS.ERROR_CACHE_SECONDS / 2}, s-maxage=${
-          CONSTANTS.ERROR_CACHE_SECONDS
-        }, stale-while-revalidate=${CONSTANTS.ONE_DAY}`,
+        `private, max-age=${CONSTANTS.ERROR_CACHE_SECONDS / 2}`,
       ],
     ]);
   });
